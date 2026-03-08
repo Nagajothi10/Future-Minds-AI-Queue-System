@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Smart Queue and Crowd Optimization System</title>
+<style>
+body{
+  font-family:Segoe UI;
+  background:#f1f5f9;
+  margin:0;
+  text-align:center;
+}
+header{
+  background:#0f172a;
+  color:white;
+  padding:20px;
+  font-size:24px;
+  position:relative;
+}
+.back{
+  position:absolute;
+  left:15px;
+  top:20px;
+  font-size:22px;
+  cursor:pointer;
+  display:none;
+}
+.card{
+  background:white;
+  width:430px;
+  margin:40px auto;
+  padding:30px;
+  border-radius:10px;
+  box-shadow:0 8px 20px rgba(0,0,0,0.1);
+}
+h2{
+  color:#1e293b;
+}
+button{
+  padding:12px 20px;
+  margin:8px;
+  border:none;
+  border-radius:6px;
+  background:#2563eb;
+  color:white;
+  cursor:pointer;
+  font-size:14px;
+}
+button:hover{
+  background:#1d4ed8;
+}
+.adminbtn{
+  background:#16a34a;
+}
+.adminbtn:hover{
+  background:#15803d;
+}
+input{
+  width:90%;
+  padding:10px;
+  margin:10px;
+  border-radius:5px;
+  border:1px solid #ccc;
+}
+.hidden{
+  display:none;
+}
+.error{
+  color:red;
+}
+.tokenBox{
+  background:#e0f2fe;
+  padding:15px;
+  border-radius:8px;
+  margin-top:10px;
+}
+.meter{
+  background:#ddd;
+  height:15px;
+  border-radius:10px;
+  overflow:hidden;
+}
+.bar{
+  height:15px;
+  width:10%;
+  background:green;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="back" id="backBtn" onclick="goBack()">←</span>
+  Smart Queue and Crowd Optimization System
+</header>
+
+<!-- HOME -->
+<div class="card" id="home">
+  <h2>Select Access</h2>
+  <button onclick="openLogin()">User</button>
+  <br><br>
+  <button class="adminbtn" onclick="openAdminLogin()">Admin</button>
+</div>
+
+<!-- USER LOGIN -->
+<div class="card hidden" id="login">
+  <h2>User Login</h2>
+  <input id="username" placeholder="Username">
+  <input id="accno" placeholder="Account Number">
+  <br>
+  <button onclick="validateUser()">Continue</button>
+  <p id="error" class="error"></p>
+</div>
+
+<!-- SERVICES -->
+<div class="card hidden" id="services">
+  <h2>Select Service</h2>
+  <button onclick="generateToken('withdraw')">Cash Withdrawal</button>
+  <button onclick="generateToken('deposit')">Cash Deposit</button>
+  <button onclick="generateToken('loan')">Loan Apply</button>
+  <button onclick="generateToken('passbook')">Passbook Update</button>
+  <button onclick="generateToken('newpassbook')">New Passbook</button>
+</div>
+
+<!-- TOKEN PAGE -->
+<div class="card hidden" id="tokenPage">
+  <h2>Your Token</h2>
+  <div class="tokenBox">
+    <h1 id="token"></h1>
+    <p id="waiting"></p>
+  </div>
+</div>
+
+<!-- ADMIN LOGIN -->
+<div class="card hidden" id="adminLogin">
+  <h2>Admin Login</h2>
+  <input id="adminUser" placeholder="Admin Username">
+  <input id="adminPass" type="password" placeholder="Password">
+  <br>
+  <button onclick="adminLogin()">Login</button>
+  <p id="adminError" class="error"></p>
+</div>
+
+<!-- ADMIN DASHBOARD -->
+<div class="card hidden" id="admin">
+  <h2>Admin Dashboard</h2>
+  <p>Withdrawal Tokens : <b id="w"></b></p>
+  <p>Deposit Tokens : <b id="d"></b></p>
+  <p>Loan Tokens : <b id="l"></b></p>
+  <p>Passbook Update Tokens : <b id="p"></b></p>
+  <p>New Passbook Tokens : <b id="n"></b></p>
+  <br>
+  <p>Crowd Level : <b id="crowd"></b></p>
+  <div style="margin-top:10px">
+    <p>Crowd Meter</p>
+    <div class="meter">
+      <div id="crowdBar" class="bar"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let historyStack=[]
+
+function hideAll(){
+  document.querySelectorAll(".card").forEach(c=>c.classList.add("hidden"))
+}
+
+function showBack(){
+  document.getElementById("backBtn").style.display="block"
+}
+
+function hideBack(){
+  document.getElementById("backBtn").style.display="none"
+}
+
+function goBack(){
+  if(historyStack.length>0){
+    let prev=historyStack.pop()
+    hideAll()
+    document.getElementById(prev).classList.remove("hidden")
+  }
+}
+
+function openLogin(){
+  historyStack.push("home")
+  hideAll()
+  showBack()
+  document.getElementById("login").classList.remove("hidden")
+}
+
+function openAdminLogin(){
+  historyStack.push("home")
+  hideAll()
+  showBack()
+  document.getElementById("adminLogin").classList.remove("hidden")
+}
+
+function validateUser(){
+  let username=document.getElementById("username").value.trim()
+  let accno=document.getElementById("accno").value.trim()
+  let namePattern=/^[A-Za-z ]+$/
+  let accPattern=/^[0-9]+$/
+  if(!namePattern.test(username)){
+    document.getElementById("error").innerText="Invalid Username"
+    return
+  }
+  if(!accPattern.test(accno)){
+    document.getElementById("error").innerText="Invalid Account Number"
+    return
+  }
+  localStorage.setItem("currentAcc",accno)
+  historyStack.push("login")
+  hideAll()
+  showBack()
+  document.getElementById("services").classList.remove("hidden")
+}
+
+function generateToken(service){
+  let accno=localStorage.getItem("currentAcc")
+  let today=new Date().toDateString()
+  let used=JSON.parse(localStorage.getItem("used"))||{}
+  let key=accno+"_"+service
+  if(used[key]===today){
+    alert("You have already generated token for this service today")
+    return
+  }
+
+  let counters=JSON.parse(localStorage.getItem("tokens"))||{
+    withdraw:0,
+    deposit:0,
+    loan:0,
+    passbook:0,
+    newpassbook:0
+  }
+
+  counters[service]++
+  localStorage.setItem("tokens",JSON.stringify(counters))
+  used[key]=today
+  localStorage.setItem("used",JSON.stringify(used))
+
+  let prefix={
+    withdraw:"W",
+    deposit:"D",
+    loan:"L",
+    passbook:"P",
+    newpassbook:"N"
+  }
+
+  let token=prefix[service]+counters[service]
+
+  // Calculate waiting time
+  let wait=counters[service]*20
+  let waitText=""
+  if(wait < 60){
+    waitText=wait+" minutes"
+  } else {
+    let hours=Math.floor(wait/60)
+    let minutes=wait%60
+    waitText=hours+" hour"+(hours>1?"s":"")+" "+minutes+" minutes"
+  }
+
+  historyStack.push("services")
+  hideAll()
+  showBack()
+  document.getElementById("tokenPage").classList.remove("hidden")
+  document.getElementById("token").innerText=token
+  document.getElementById("waiting").innerText="Estimated Waiting Time: "+waitText
+}
+
+function adminLogin(){
+  let u=document.getElementById("adminUser").value
+  let p=document.getElementById("adminPass").value
+  if(u==="admin" && p==="bank123"){
+    historyStack.push("adminLogin")
+    hideAll()
+    showBack()
+    document.getElementById("admin").classList.remove("hidden")
+    updateAdmin()
+  } else{
+    document.getElementById("adminError").innerText="Invalid Credentials"
+  }
+}
+
+function updateAdmin(){
+  let counters=JSON.parse(localStorage.getItem("tokens"))||{}
+  document.getElementById("w").innerText=counters.withdraw||0
+  document.getElementById("d").innerText=counters.deposit||0
+  document.getElementById("l").innerText=counters.loan||0
+  document.getElementById("p").innerText=counters.passbook||0
+  document.getElementById("n").innerText=counters.newpassbook||0
+
+  let total=(counters.withdraw||0)+(counters.deposit||0)+(counters.loan||0)+(counters.passbook||0)+(counters.newpassbook||0)
+  let crowd="Low"
+  if(total>10) crowd="Medium"
+  if(total>20) crowd="High"
+  document.getElementById("crowd").innerText=crowd
+
+  let bar=document.getElementById("crowdBar")
+  bar.style.transition="width 0.5s, background 0.5s"
+  if(crowd==="Low"){
+    bar.style.width="30%"
+    bar.style.background="green"
+  }
+  if(crowd==="Medium"){
+    bar.style.width="60%"
+    bar.style.background="orange"
+  }
+  if(crowd==="High"){
+    bar.style.width="90%"
+    bar.style.background="red"
+  }
+}
+</script>
+
+</body>
+</html>
